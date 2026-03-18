@@ -70,16 +70,10 @@ impl ActionTestHarness {
     /// reorg reset tests.
     pub fn l2_genesis(&self) -> L2BlockInfo {
         let genesis_l1 = block_info_from(self.l1.chain().first().expect("genesis always present"));
-        L2BlockInfo {
-            block_info: BlockInfo {
-                hash: self.rollup_config.genesis.l2.hash,
-                number: self.rollup_config.genesis.l2.number,
-                parent_hash: Default::default(),
-                timestamp: self.rollup_config.genesis.l2_time,
-            },
-            l1_origin: BlockNumHash { number: genesis_l1.number, hash: genesis_l1.hash },
-            seq_num: 0,
-        }
+        self.make_genesis_l2_block(BlockNumHash {
+            number: genesis_l1.number,
+            hash: genesis_l1.hash,
+        })
     }
 
     /// Create an [`L2Sequencer`] starting from L2 genesis, wired to a
@@ -95,16 +89,8 @@ impl ActionTestHarness {
     pub fn create_l2_sequencer(&self, l1_chain: SharedL1Chain) -> L2Sequencer {
         let l1_genesis_hash = l1_chain.get_block(0).map(|b| b.hash()).unwrap_or_default();
 
-        let genesis_head = L2BlockInfo {
-            block_info: BlockInfo {
-                hash: self.rollup_config.genesis.l2.hash,
-                number: self.rollup_config.genesis.l2.number,
-                parent_hash: Default::default(),
-                timestamp: self.rollup_config.genesis.l2_time,
-            },
-            l1_origin: BlockNumHash { number: 0, hash: l1_genesis_hash },
-            seq_num: 0,
-        };
+        let genesis_head =
+            self.make_genesis_l2_block(BlockNumHash { number: 0, hash: l1_genesis_hash });
 
         let system_config = self.rollup_config.genesis.system_config.unwrap_or_default();
 
@@ -175,6 +161,19 @@ impl ActionTestHarness {
         (verifier.with_block_hash_registry(sequencer.block_hash_registry()), chain)
     }
 
+    fn make_genesis_l2_block(&self, l1_origin: BlockNumHash) -> L2BlockInfo {
+        L2BlockInfo {
+            block_info: BlockInfo {
+                hash: self.rollup_config.genesis.l2.hash,
+                number: self.rollup_config.genesis.l2.number,
+                parent_hash: Default::default(),
+                timestamp: self.rollup_config.genesis.l2_time,
+            },
+            l1_origin,
+            seq_num: 0,
+        }
+    }
+
     fn create_verifier_with_l2_provider_and_chain(
         &self,
         l2_provider: ActionL2ChainProvider,
@@ -197,7 +196,10 @@ impl ActionTestHarness {
                 parent_hash: Default::default(),
                 timestamp: self.rollup_config.genesis.l2_time,
             },
-            l1_origin: BlockNumHash { number: genesis_l1.number, hash: genesis_l1.hash },
+            l1_origin: BlockNumHash {
+                number: genesis_l1.number,
+                hash: genesis_l1.hash,
+            },
             seq_num: 0,
         };
 
@@ -236,7 +238,10 @@ impl ActionTestHarness {
                 parent_hash: Default::default(),
                 timestamp: self.rollup_config.genesis.l2_time,
             },
-            l1_origin: BlockNumHash { number: genesis_l1.number, hash: genesis_l1.hash },
+            l1_origin: BlockNumHash {
+                number: genesis_l1.number,
+                hash: genesis_l1.hash,
+            },
             seq_num: 0,
         };
 
