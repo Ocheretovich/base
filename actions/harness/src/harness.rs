@@ -67,12 +67,10 @@ impl ActionTestHarness {
         block_info_from(self.l1.tip())
     }
 
-    /// Return the L2 genesis [`L2BlockInfo`] anchored to the L1 genesis block.
-    ///
-    /// Convenience method eliminating the repeated 10-line construction used in
-    /// reorg reset tests.
-    pub fn l2_genesis(&self) -> L2BlockInfo {
-        let genesis_l1 = block_info_from(self.l1.chain().first().expect("genesis always present"));
+    /// Core private helper to construct L2 genesis [`L2BlockInfo`] for any L1 origin.
+    /// This eliminates duplication of the repeated genesis block construction
+    /// across `l2_genesis()` and `create_l2_sequencer()`.
+    fn l2_genesis_with_origin(&self, l1_origin: BlockNumHash) -> L2BlockInfo {
         L2BlockInfo {
             block_info: BlockInfo {
                 hash: self.rollup_config.genesis.l2.hash,
@@ -80,9 +78,22 @@ impl ActionTestHarness {
                 parent_hash: Default::default(),
                 timestamp: self.rollup_config.genesis.l2_time,
             },
-            l1_origin: BlockNumHash { number: genesis_l1.number, hash: genesis_l1.hash },
+            l1_origin,
             seq_num: 0,
         }
+    }
+
+    /// Return the L2 genesis [`L2BlockInfo`] anchored to the L1 genesis block.
+    ///
+    /// Convenience method eliminating the repeated 10-line construction used in
+    /// reorg reset tests.
+    pub fn l2_genesis(&self) -> L2BlockInfo {
+        let genesis_l1 = block_info_from(self.l1.chain().first().expect("genesis always present"));
+
+        self.l2_genesis_with_origin(BlockNumHash {
+            number: genesis_l1.number,
+            hash: genesis_l1.hash,
+        })
     }
 
     /// Create a [`SupervisedP2P`] / [`TestGossipTransport`] channel pair and
@@ -243,16 +254,8 @@ impl ActionTestHarness {
     pub fn create_l2_sequencer(&self, l1_chain: SharedL1Chain) -> L2Sequencer {
         let l1_genesis_hash = l1_chain.get_block(0).map(|b| b.hash()).unwrap_or_default();
 
-        let genesis_head = L2BlockInfo {
-            block_info: BlockInfo {
-                hash: self.rollup_config.genesis.l2.hash,
-                number: self.rollup_config.genesis.l2.number,
-                parent_hash: Default::default(),
-                timestamp: self.rollup_config.genesis.l2_time,
-            },
-            l1_origin: BlockNumHash { number: 0, hash: l1_genesis_hash },
-            seq_num: 0,
-        };
+        let genesis_head =
+            self.l2_genesis_with_origin(BlockNumHash { number: 0, hash: l1_genesis_hash });
 
         let system_config = self.rollup_config.genesis.system_config.unwrap_or_default();
 
